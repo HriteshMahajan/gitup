@@ -20,4 +20,36 @@ First, clone the Gitup repository to your local machine:
 
 ```bash
 git clone https://github.com/HriteshMahajan/gitup.git
+```
 
+### 2. Navigate to the Repository
+
+Change to the directory containing the Gitup code:
+
+```bash
+cd gitup
+```
+
+### 3. Build the Tool
+
+Compile the Gitup tool using Go:
+
+```bash
+go build -o gitup
+```
+
+### 4. Install the Executable
+
+Move the gitup executable to a directory in your system’s PATH, so it can be accessed from anywhere. For example, you can move it to /usr/local/bin:
+
+```bash
+sudo mv gitup /usr/local/bin/
+```
+
+### 5. Verify the Installation
+
+Ensure Gitup is installed correctly by running:
+
+```bash
+sudo mv gitup /usr/local/bin/
+```
