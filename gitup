@@ -56,6 +56,7 @@ check_required_arg() {
   echo "$arg_val"
 }
 
+
 # Function to execute user-defined commands
 execute_user_commands() {
   local command
@@ -69,6 +70,19 @@ execute_user_commands() {
     eval "$command"
   done
 }
+
+
+# Function to check if a required argument is missing, and prompt if necessary
+check_required_arg_repo() {
+  local arg_val="$1"
+  local prompt_message="$2"
+  if [[ -z "$arg_val" ]]; then
+    display_available_repos
+    arg_val=$(prompt_input "$prompt_message")
+  fi
+  echo "$arg_val"
+}
+
 
 # Function to display available repositories in the CODEBASE
 display_available_repos() {
@@ -219,9 +233,9 @@ if [ ! -f "$TASK_FILE" ]; then
   echo "Created new task file: $TASK_FILE"
 fi
 
+
 # Change to the specified repository directory
-display_available_repos
-repo_name=$(check_required_arg "$repo_name" "Enter repository name")
+repo_name=$(check_required_arg_repo "$repo_name" "Enter repository name")
 
 REPO_PATH="${HOME}/Desktop/$repo_name"
 if [ -d "$REPO_PATH" ]; then
@@ -236,6 +250,7 @@ branch_name=$(check_required_arg "$branch_name" "Enter branch name")
 
 if git rev-parse --verify "$branch_name" >/dev/null 2>&1; then
   git checkout "$branch_name"
+  git pull origin "$branch_name"
   echo "Switched to branch $branch_name."
 else
   source_branch=$(check_required_arg "$source_branch" "Enter source branch to create new branch from")
