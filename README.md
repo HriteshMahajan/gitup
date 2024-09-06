@@ -1,28 +1,22 @@
-# Gitup
+# Gitup CLI Tool
 
-Gitup is a tool to automate git operations and task tracking. This README will guide you through installing Gitup on your local machine.
+## Overview
 
-## Prerequisites
+Gitup is a command-line interface (CLI) tool designed to streamline Git operations and task tracking. This tool helps automate common Git tasks, update task files with commit information, and manage branches efficiently.
 
-1. **Git**: Ensure Git is installed on your system.
-   - Install Git: [Git Installation Guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-   
-2. **Go**: Gitup is written in Go. Make sure Go is installed.
-   - Install Go: [Go Installation Guide](https://golang.org/doc/install)
+## Installation
 
-## Installation Steps
+To install Gitup on your system, follow these steps:
 
-Follow these steps to install Gitup on your laptop:
+#### 1. Clone the Repository
 
-### 1. Clone the Repository
+   Clone the Gitup repository from GitHub to your local machine:
 
-First, clone the Gitup repository to your local machine:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/gitup.git
+   ```
 
-```bash
-git clone https://github.com/HriteshMahajan/gitup.git
-```
-
-### 2. Navigate to the Repository
+#### 2. Navigate to the Repository
 
 Change to the directory containing the Gitup code:
 
@@ -30,26 +24,41 @@ Change to the directory containing the Gitup code:
 cd gitup
 ```
 
-### 3. Build the Tool
+#### 3. Make the Script Executable
 
-Compile the Gitup tool using Go:
+Give execution permissions to the gitup script:
 
 ```bash
-go build -o gitup
+chmod +x gitup
 ```
 
-### 4. Install the Executable
+#### 4.	Move the Script to a Directory in Your PATH
 
-Move the gitup executable to a directory in your system’s PATH, so it can be accessed from anywhere. For example, you can move it to /usr/local/bin:
+Move the gitup script to a directory that is in your PATH. For example:
 
 ```bash
 sudo mv gitup /usr/local/bin/
 ```
 
-### 5. Verify the Installation
+#### 5. Verify the Installation
 
 Ensure Gitup is installed correctly by running:
 
 ```bash
-sudo mv gitup /usr/local/bin/
+gitup --version
+```
+## Usage
+
+After installation, you can use Gitup by running the gitup command from the terminal. For detailed usage instructions, refer to the documentation provided in this repository.
+
+## Contributing
+
+Feel free to contribute to Gitup by submitting pull requests or issues on the GitHub repository.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+```bash
+This `README.md` merges the installation and usage instructions into one continuous document, providing a clear and organized guide for users to install and use Gitup.
 ```
