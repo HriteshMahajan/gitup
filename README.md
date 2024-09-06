@@ -13,7 +13,7 @@ To install Gitup on your system, follow these steps:
    Clone the Gitup repository from GitHub to your local machine:
 
    ```bash
-   git clone https://github.com/YOUR_USERNAME/gitup.git
+   git clone https://github.com/hriteshmahajan/gitup.git
    ```
 
 #### 2. Navigate to the Repository
