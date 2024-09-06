@@ -197,12 +197,12 @@ extract_commits_from_json() {
   local repo_name="$3"
 
   local task_file="${TASK_DIR}/${task_name}.json"
-  
+
   if [[ ! -f "$task_file" ]]; then
     echo "Task file $task_file does not exist."
     exit 1
   fi
-  
+
   local commits=$(jq -r --arg branch "$source_branch" --arg repo "$repo_name" '.branch[$branch][ $repo ].commit' "$task_file")
   echo "$commits"
 }
@@ -215,7 +215,7 @@ update_json_with_commits() {
   local commits="$4"
 
   local task_file="${TASK_DIR}/${task_name}.json"
-  
+
   local new_entry=$(jq -n --arg pr "    " --arg commits "$commits" '{pr: $pr, commit: $commits}')
   local file_content=$(cat "$task_file")
 
@@ -243,10 +243,10 @@ cherry_pick_commits() {
   local target_branch="$2"
   local commits="$3"
 
-  
+
   git checkout "$target_branch" || { echo "Failed to checkout target branch $target_branch"; execute_user_commands; }
   echo "Cherry-picking commits from $source_branch to $target_branch..."
-  
+
   git cherry-pick $commits || { echo "Failed to cherry-pick commits"; execute_user_commands;}
 }
 
