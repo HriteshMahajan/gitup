@@ -3,6 +3,7 @@
 #!/bin/bash
 
 # Define constants
+version=v1.0.0
 TASK_DIR="${HOME}/Desktop/tasks"  # Change this to your preferred directory
 SCRIPT_NAME=$(basename "$0")
 CODEBASE="${HOME}/Desktop"
@@ -26,6 +27,14 @@ Options:
 
 Examples:
   $SCRIPT_NAME --task "T1234" --repo "my-repo" --branch "feature-branch" --message "Fixing bugs" --pr "https://github.com/my-repo/pr/123"
+EOF
+  exit 1
+}
+
+# Display version
+display_version() {
+  cat <<EOF
+  gitup $version
 EOF
   exit 1
 }
@@ -170,6 +179,7 @@ while [[ "$#" -gt 0 ]]; do
     -b|--branch) branch_name="$2"; shift ;;
     -s|--source) source_branch="$2"; shift ;;
     -m|--message) commit_message="$2"; shift ;;
+    -v|--version) display_version ;;
     -p|--pr) pr_link="$2"; shift ;;
     -h|--help) usage ;;
     *) echo "Unknown option: $1"; usage ;;
