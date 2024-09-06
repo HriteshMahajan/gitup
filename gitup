@@ -62,7 +62,7 @@ execute_user_commands() {
   local command
   echo "You can now execute any commands you need. Type 'done' when you are finished."
   while true; do
-    read -p "> " command
+    read -p "($(pwd)>) " command
     if [[ "$command" == "done" ]]; then
       break
     fi
