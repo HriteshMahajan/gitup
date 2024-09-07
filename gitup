@@ -1,5 +1,3 @@
-
-
 #!/bin/bash
 
 # Define constants
@@ -23,10 +21,13 @@ Options:
   -s, --source      Source branch to create a new branch from (if branch does not exist)
   -m, --message     Commit message (required)
   -p, --pr          PR link to update in the task file (required after pushing)
+  -cp, --cherry-pick Source branch to cherry-pick commits from (for copying commits)
+  -v, --version     Display version
   -h, --help        Display this help message and exit
 
 Examples:
   $SCRIPT_NAME --task "T1234" --repo "my-repo" --branch "feature-branch" --message "Fixing bugs" --pr "https://github.com/my-repo/pr/123"
+  $SCRIPT_NAME --task "Gitup" --repo "gitup" --branch "temp" --cherry-pick "main"
 EOF
   exit 1
 }
@@ -56,7 +57,6 @@ check_required_arg() {
   echo "$arg_val"
 }
 
-
 # Function to execute user-defined commands
 execute_user_commands() {
   local command
@@ -71,7 +71,6 @@ execute_user_commands() {
   done
 }
 
-
 # Function to check if a required argument is missing, and prompt if necessary
 check_required_arg_repo() {
   local arg_val="$1"
@@ -82,7 +81,6 @@ check_required_arg_repo() {
   fi
   echo "$arg_val"
 }
-
 
 # Function to display available repositories in the CODEBASE
 display_available_repos() {
@@ -192,11 +190,65 @@ update_task_file() {
   echo "Task file updated: $task_file"
 }
 
-# Function to extract the latest commit hash
-get_commits() {
-  git log -1 --pretty=format:"%H"
+# Function to extract commit hashes from the JSON file
+extract_commits_from_json() {
+  local task_name="$1"
+  local source_branch="$2"
+  local repo_name="$3"
+
+  local task_file="${TASK_DIR}/${task_name}.json"
+  
+  if [[ ! -f "$task_file" ]]; then
+    echo "Task file $task_file does not exist."
+    exit 1
+  fi
+  
+  local commits=$(jq -r --arg branch "$source_branch" --arg repo "$repo_name" '.branch[$branch][ $repo ].commit' "$task_file")
+  echo "$commits"
 }
 
+# Function to update the JSON file with cherry-picked commits
+update_json_with_commits() {
+  local task_name="$1"
+  local target_branch="$2"
+  local repo_name="$3"
+  local commits="$4"
+
+  local task_file="${TASK_DIR}/${task_name}.json"
+  
+  local new_entry=$(jq -n --arg pr "    " --arg commits "$commits" '{pr: $pr, commit: $commits}')
+  local file_content=$(cat "$task_file")
+
+  # Update or create the target branch entry
+  if echo "$file_content" | jq -e --arg branch "$target_branch" '.branch[$branch] != null' >/dev/null; then
+    echo "Updating branch '$target_branch'..."
+    file_content=$(echo "$file_content" | jq --arg branch "$target_branch" --arg repo "$repo_name" --argjson new_entry "$new_entry" '
+      .branch[$branch][$repo] = $new_entry
+    ')
+  else
+    echo "Creating new branch '$target_branch'..."
+    file_content=$(echo "$file_content" | jq --arg branch "$target_branch" --arg repo "$repo_name" --argjson new_entry "$new_entry" '
+      .branch[$branch] = {($repo): $new_entry}
+    ')
+  fi
+
+  # Write the updated content back to the task file
+  echo "$file_content" | jq '.' > "$task_file"
+  echo "Task file updated: $task_file"
+}
+
+# Function to execute cherry-pick from source branch
+cherry_pick_commits() {
+  local source_branch="$1"
+  local target_branch="$2"
+  local commits="$3"
+
+  
+  git checkout "$target_branch" || { echo "Failed to checkout target branch $target_branch"; execute_user_commands; }
+  echo "Cherry-picking commits from $source_branch to $target_branch..."
+  
+  git cherry-pick $commits || { echo "Failed to cherry-pick commits"; execute_user_commands;}
+}
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
@@ -207,6 +259,7 @@ while [[ "$#" -gt 0 ]]; do
     -b|--branch) branch_name="$2"; shift ;;
     -s|--source) source_branch="$2"; shift ;;
     -m|--message) commit_message="$2"; shift ;;
+    -cp|--cherry-pick) cherry_pick_source="$2"; shift ;;
     -v|--version) display_version ;;
     -p|--pr) pr_link="$2"; shift ;;
     -h|--help) usage ;;
@@ -214,6 +267,7 @@ while [[ "$#" -gt 0 ]]; do
   esac
   shift
 done
+
 
 # Prompt for required arguments if missing
 task_name=$(check_required_arg "$task_name" "Enter task name (it should be unique)")
@@ -232,7 +286,6 @@ if [ ! -f "$TASK_FILE" ]; then
 }" > "$TASK_FILE"
   echo "Created new task file: $TASK_FILE"
 fi
-
 
 # Change to the specified repository directory
 repo_name=$(check_required_arg_repo "$repo_name" "Enter repository name")
@@ -259,6 +312,19 @@ else
   echo "Created and switched to new branch $branch_name from $source_branch."
 fi
 
+
+# Execute cherry-pick if requested
+if [[ -n "$cherry_pick_source" ]]; then
+  commits=$(extract_commits_from_json "$task_name" "$cherry_pick_source" "$repo_name")
+  cherry_pick_commits  "$cherry_pick_source" "$branch_name" "$commits"
+  echo "Pushing to branch $branch_name."
+  git push origin "$branch_name" || { echo "Failed to push changes"; eexecute_user_commands; }
+  # Update task file with PR link and commit hash
+  pr_link=$(check_required_arg "$pr_link" "Enter PR link")
+  update_task_file "$task_name" "$branch_name" "$pr_link" "$commits" "$repo_name"
+  exit 1
+fi
+
 # Execute user-defined commands
 execute_user_commands
 
@@ -267,13 +333,11 @@ commit_message=$(check_required_arg "$commit_message" "Enter commit message")
 
 # Commit and push changes
 echo "Committing to branch $branch_name."
-git commit -m "$commit_message" || { echo "Failed to commit changes"; exit 1; }
+git commit -m "$commit_message" || { echo "Failed to commit changes"; execute_user_commands; }
 echo "Pushing to branch $branch_name."
-git push origin "$branch_name" || { echo "Failed to push changes"; exit 1; }
+git push origin "$branch_name" || { echo "Failed to push changes"; execute_user_commands; }
 
 # Update task file with PR link and commit hash
 COMMIT_HASH=$(get_commits)
 pr_link=$(check_required_arg "$pr_link" "Enter PR link")
 update_task_file "$task_name" "$branch_name" "$pr_link" "$COMMIT_HASH" "$repo_name"
-
-
