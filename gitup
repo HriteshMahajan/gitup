@@ -270,17 +270,24 @@ extract_commits_from_json() {
 }
 
 
-# Function to execute cherry-pick from source branch
+# Function to cherry-pick multiple commits
 cherry_pick_commits() {
   local source_branch="$1"
   local target_branch="$2"
   local commits="$3"
 
+  # Switch to the target branch
+  git checkout "$target_branch" || { echo "Failed to switch to branch $target_branch"; exit 1; }
   
-  git checkout "$target_branch" || { echo "Failed to checkout target branch $target_branch"; execute_user_commands; }
   echo "Cherry-picking commits from $source_branch to $target_branch..."
-  
-  git cherry-pick "$commits" || { echo "Failed to cherry-pick commits"; execute_user_commands;}
+
+  # Remove any leading or trailing whitespace from commits string
+  commits=$(echo "$commits" | xargs)
+
+  # Cherry-pick the commits
+  git cherry-pick $commits || { execute_user_commands; }
+
+  echo "Cherry-picking completed."
 }
 
 # Function to check if there are uncommitted changes
