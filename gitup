@@ -196,7 +196,8 @@ update_task_file() {
 extract_commits_from_json() {
   local task_name="$1"
   local source_branch="$2"
-  local repo_name="$3"
+  local target_branch="$3"
+  local repo_name="$4"
 
   local task_file="${TASK_DIR}/${task_name}.json"
   
@@ -205,8 +206,28 @@ extract_commits_from_json() {
     exit 1
   fi
   
-  local commits=$(jq -r --arg branch "$source_branch" --arg repo "$repo_name" '.branch[$branch][ $repo ].commit' "$task_file")
-  echo "$commits"
+  local commits_source=$(jq -r --arg branch "$source_branch" --arg repo "$repo_name" '.branch[$branch][ $repo ].commit' "$task_file")
+  local commits_target=$(jq -r --arg branch "$target_branch" --arg repo "$repo_name" '.branch[$branch][ $repo ].commit' "$task_file")
+
+  # Convert the commit strings to arrays
+  commits_source_arr=($commits_source)
+  commits_target_arr=($commits_target)
+
+  # Filter commits present in source but not in target (in original order)
+  commits=()
+  for commit in "${commits_source_arr[@]}"; do
+      if [[ ! " ${commits_target_arr[@]} " =~ " $commit " ]]; then
+          commits+=("$commit")
+      fi
+  done
+
+  # Join the commits array into a space-separated string
+  commits_string=$(printf "%s " "${commits[@]}")
+
+  # Display the result
+  # echo "Commits to cherry-pick: $commits_string"
+
+  echo "$commits_string"
 }
 
 # Function to update the JSON file with cherry-picked commits
@@ -282,6 +303,7 @@ handle_uncommitted_changes() {
         execute_user_commands
         # After executing user commands, ask again to stash or discard
         echo "Rechecking for uncommitted changes after executing custom commands."
+        break;
         ;;
       * )
         echo "Invalid option. Please choose S, D, or E."
@@ -290,6 +312,7 @@ handle_uncommitted_changes() {
   done
 }
 
+extract_commits_from_json "Gitup" "main" "test" "gitup"
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
@@ -381,7 +404,7 @@ fi
 
 # Execute cherry-pick if requested
 if [[ -n "$cherry_pick_source" ]]; then
-  commits=$(extract_commits_from_json "$task_name" "$cherry_pick_source" "$repo_name")
+  commits=$(extract_commits_from_json "$task_name" "$cherry_pick_source" "$branch_name" "$repo_name")
   cherry_pick_commits  "$cherry_pick_source" "$branch_name" "$commits"
   echo "Pushing to branch $branch_name."
   git push origin "$branch_name" || { echo "Failed to push changes"; execute_user_commands; }
