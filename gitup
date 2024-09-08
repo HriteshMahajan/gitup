@@ -23,6 +23,7 @@ Options:
   -s, --source      Source branch to create a new branch from (if branch does not exist)
   -m, --message     Commit message (required)
   -p, --pr          PR link to update in the task file (required after pushing)
+  -l, –level        Level of the task completion. Valid options: commit or push (default: push)
   -cp, --cherry-pick Source branch to cherry-pick commits from (for copying commits)
   -v, --version     Display version
   -h, --help        Display this help message and exit
@@ -71,13 +72,14 @@ check_required_arg_repo() {
     display_available_repos
     arg_val=$(prompt_input "$prompt_message")
   fi
-  echo "$arg_val"
+  # echo "$arg_val"
 }
 
 # Function to execute user-defined commands
 execute_user_commands() {
+  local prompt_message=$1
   local command
-  echo "You can now execute any commands you need. Type [d]one when you are finished."
+  echo "$prompt_message"
   while true; do
     read -p "($(pwd)>) " command
     if [[ "$command" == "done" || "$command" == "d" ]]; then
@@ -89,7 +91,8 @@ execute_user_commands() {
 
 # Function to display available repositories in the CODEBASE
 display_available_repos() {
-  echo "Available repositories in $CODEBASE:"
+  echo
+  echo "Please a repositories from your CODEBASE ($CODEBASE) :"
 
   local repos=($(ls -d "${CODEBASE}"/*/ 2>/dev/null | xargs -n 1 basename)) 
 
@@ -285,7 +288,7 @@ cherry_pick_commits() {
   commits=$(echo "$commits" | xargs)
 
   # Cherry-pick the commits
-  git cherry-pick $commits || { execute_user_commands; }
+  git cherry-pick $commits || { execute_user_commands ""; }
 
   echo "Cherry-picking completed."
 }
@@ -317,7 +320,7 @@ handle_uncommitted_changes() {
         break
         ;;
       [Ee]* )
-        execute_user_commands
+        execute_user_commands "Please execute the desired commands. Type [d]one when you are ready to proceed."
         # After executing user commands, ask again to stash or discard
         echo "Rechecking for uncommitted changes after executing custom commands."
         break;
@@ -341,6 +344,7 @@ while [[ "$#" -gt 0 ]]; do
     -m|--message) commit_message="$2"; shift ;;
     -cp|--cherry-pick) cherry_pick_source="$2"; shift ;;
     -v|--version) display_version ;;
+    -l|--level) level="$2"; shift ;;
     -p|--pr) pr_link="$2"; shift ;;
     -h|--help) usage ;;
     *) echo "Unknown option: $1"; usage ;;
@@ -368,9 +372,19 @@ if [ ! -f "$TASK_FILE" ]; then
 fi
 
 # Change to the specified repository directory
-repo_name=$(check_required_arg_repo "$repo_name" "Enter repository name")
-
+# repo_name=$(check_required_arg_repo "$repo_name" "Enter repository name")
+if [[ -z "$repo_name" ]]; then
+  display_available_repos
+  repo_name=$(prompt_input "Enter repository name [$(pwd)]")
+fi
 REPO_PATH="${HOME}/Desktop/$repo_name"
+
+if [[ -z "$repo_name" ]]; then
+  REPO_PATH=$(pwd)
+  echo "Using current repo by Default : [$REPO_PATH]"
+fi
+
+
 if [ -d "$REPO_PATH" ]; then
   cd "$REPO_PATH" || { echo "Failed to change directory to $REPO_PATH"; exit 1; }
 else
@@ -379,6 +393,8 @@ else
 fi
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
+branch_name=$(check_required_arg "$branch_name" "Enter branch name")
+
 # Check if branch exists and create if necessary
 if check_branch_exists "$branch_name"; then
   # Only check for uncommitted changes if switching to a different branch
@@ -433,7 +449,7 @@ if [[ -n "$cherry_pick_source" ]]; then
     cherry_pick_commits "$cherry_pick_source" "$branch_name" "$commits"
   fi
   echo "Pushing to branch $branch_name."
-  git push origin "$branch_name" || { echo "Failed to push changes"; execute_user_commands; }
+  git push origin "$branch_name" || { execute_user_commands "Failed to push changes. Please do it manually. Type [d]one when you are ready to proceed."; }
   # Update task file with PR link and commit hash
   pr_link=$(check_required_arg "$pr_link" "Enter PR link")
   update_task_file "$task_name" "$branch_name" "$pr_link" "$commits" "$repo_name"
@@ -441,19 +457,36 @@ if [[ -n "$cherry_pick_source" ]]; then
 fi
 
 # Execute user-defined commands
-echo "Please do the necessary changes before moving ahead"
-execute_user_commands
+# echo "Please do the necessary changes before moving ahead"
+execute_user_commands "Please do the necessary changes before moving ahead. Type [d]one when you are ready to proceed."
 
 # Commit and push changes
 commit_message=$(check_required_arg "$commit_message" "Enter commit message")
 
+# Capture commits before pushing
+get_commits_before_push() {
+  git log --format="%H" --reverse
+}
+
 # Commit and push changes
+# Capture commits before pushing
+commits_before=$(get_commits_before_push)
 echo "Committing to branch $branch_name."
-git commit -m "$commit_message" || { echo "Failed to commit changes"; execute_user_commands; }
-echo "Pushing to branch $branch_name."
-git push origin "$branch_name" || { echo "Failed to push changes"; execute_user_commands; }
+git commit -m "$commit_message" || { execute_user_commands "Failed to commit changes. Please do it manually. Type [d]one when you are ready to proceed."; }
+level=$(check_required_arg "$level" "Press any key to continue to Push or Press [e]xit")
+
+if [[ "$level" != "e" && "$level" != "exit" && "$level" != "commit" ]]; then
+  echo "Pushing to branch $branch_name."
+  git push origin "$branch_name" || { echo "Failed to push changes"; execute_user_commands "Failed to push changes. Please do it manually. Type [d]one when you are ready to proceed."; }
+  pr_link=$(check_required_arg "$pr_link" "Enter PR link")
+fi
+# Capture commits after pushing
+commits_after=$(get_commits_before_push)
+
+# Determine the commits pushed
+commits_pushed=$(comm -13 <(echo "$commits_before") <(echo "$commits_after"))
+
 
 # Update task file with PR link and commit hash
-COMMIT_HASH=$(git log -n 1 --pretty=format:%H)
-pr_link=$(check_required_arg "$pr_link" "Enter PR link")
+COMMIT_HASH=$commits_pushed
 update_task_file "$task_name" "$branch_name" "$pr_link" "$COMMIT_HASH" "$repo_name"
