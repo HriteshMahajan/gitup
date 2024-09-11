@@ -381,6 +381,7 @@ REPO_PATH="${HOME}/Desktop/$repo_name"
 
 if [[ -z "$repo_name" ]]; then
   REPO_PATH=$(pwd)
+  repo_name=$(basename "$REPO_PATH")
   echo "Using current repo by Default : [$REPO_PATH]"
 fi
 
